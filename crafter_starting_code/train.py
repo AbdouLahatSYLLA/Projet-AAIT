@@ -9,7 +9,7 @@ from agent import DQNAgent
 
 class RandomAgent:
     """An example Random Agent"""
-
+##commentaire
     def __init__(self, action_num) -> None:
         self.action_num = action_num
         # a uniformly random policy
