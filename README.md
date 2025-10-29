@@ -1,2 +1,3 @@
 # Projet-AAIT
 Projet de creation d'agent IA pour jour à crafter en appliquant les techniques : DQN,...
+python train.py --agent dqn --logdir logdir/dqn_agent/0 
