@@ -5,7 +5,7 @@ from pathlib import Path  # to manage path
 import torch  # for the deep learning
 
 from src.crafter_wrapper import Env  # to prepare the environment of the game
-from agent import DQNAgent
+from multiAgents import DQNAgent, DoubleDQNAgent
 
 class RandomAgent:
     """An example Random Agent"""
@@ -105,50 +105,62 @@ def main(opt):
     env = Env("train", opt)
     eval_env = Env("eval", opt)
 
+    agent_map = {
+        'random': RandomAgent,
+        'dqn': DQNAgent,
+        'double_dqn': DoubleDQNAgent
+    }
+
     # [FR] Crée l'agent spécifié par l'argument --agent.
     # [EN] Creates the agent specified by the --agent argument.
     if opt.agent == 'random':
         agent = RandomAgent(env.action_space.n)
-    elif opt.agent == 'dqn':
-        agent = DQNAgent(action_num=env.action_space.n, history_length=opt.history_length)
+    elif opt.agent in ['dqn', 'double_dqn']:
+        AgentClass = agent_map[opt.agent]
+        agent = AgentClass(
+            action_num=env.action_space.n,
+            history_length=opt.history_length,
+            buffer_size=opt.buffer_size,
+            batch_size=opt.batch_size,
+            gamma=opt.gamma,
+            learning_rate=opt.lr
+        )
     else:
-        raise ValueError(f"Unknown agent: {opt.agent}")
+        raise ValueError(f"Agent inconnu: {opt.agent}. Choisissez parmi {list(agent_map.keys())}")
 
-    # [FR] Boucle d'entraînement principale.
-    # [EN] Main training loop.
-    step_cnt = 0  # [FR] Compteur de pas. / [EN] Step counter.
-    obs = env.reset()  # [FR] Réinitialise l'environnement pour obtenir la première observation. / [EN] Resets the environment to get the first observation.
-
+    print(f"Starting training for {opt.steps} steps with agent: {opt.agent}")
+    step_cnt = 0
+    obs = env.reset()
     while step_cnt < opt.steps:
-        # [FR] Pour un agent DQN, on a besoin d'une politique epsilon-greedy.
-        # [EN] For a DQN agent, we need an epsilon-greedy policy.
-        epsilon = 0.1  # [FR] On peut améliorer cela avec un epsilon qui décroît. / [EN] This can be improved with a decaying epsilon.
-        action = agent.act(obs, epsilon=epsilon) if opt.agent == 'dqn' else agent.act(obs)
+        # [FR] Calculez epsilon (exemple de décroissance linéaire)
+        # [EN] Calculate epsilon (example of linear decay)
+        # epsilon = max(opt.epsilon_final, opt.epsilon_start - step_cnt / opt.epsilon_decay)
 
-        # [FR] L'agent interagit avec l'environnement.
-        # [EN] The agent interacts with the environment.
+        # [FR] Utilisation d'un epsilon fixe pour l'instant
+        # [EN] Using a fixed epsilon for now
+        epsilon = 0.1
+
+        # [FR] L'appel 'act' fonctionne maintenant pour tous les agents
+        # [EN] The 'act' call now works for all agents
+        action = agent.act(obs, epsilon=epsilon)
+
         next_obs, reward, done, info = env.step(action)
 
-        # [FR] Si c'est un agent DQN, on stocke la transition et on apprend.
-        # [EN] If it's a DQN agent, we store the transition and learn.
-        if opt.agent == 'dqn':
+        # [FR] Logique d'apprentissage (uniquement pour les agents non-aléatoires)
+        # [EN] Learning logic (only for non-random agents)
+        if opt.agent != 'random':
             agent.replay_buffer.add(obs, action, reward, next_obs, done)
             agent.learn()
-            # [FR] Met à jour le réseau cible périodiquement.
-            # [EN] Periodically updates the target network.
-            if step_cnt % 1000 == 0:
+
+            if step_cnt % opt.target_update_interval == 0:
                 agent.update_target_network()
 
-        obs = next_obs  # [FR] Met à jour l'état. / [EN] Updates the state.
-        step_cnt += 1  # [FR] Incrémente le compteur. / [EN] Increments the counter.
+        obs = next_obs
+        step_cnt += 1
 
-        # [FR] Évalue périodiquement.
-        # [EN] Evaluates periodically.
         if step_cnt % opt.eval_interval == 0:
             eval(agent, eval_env, step_cnt, opt)
 
-        # [FR] Si l'épisode est terminé, réinitialise l'environnement.
-        # [EN] If the episode is done, resets the environment.
         if done:
             obs = env.reset()
 
@@ -196,11 +208,17 @@ def get_options():
     """[FR] Configure les arguments de la ligne de commande. / [EN] Configures the command-line arguments."""
     parser = argparse.ArgumentParser()
     parser.add_argument("--logdir", default="logdir/random_agent/0")
-    parser.add_argument("--agent", type=str, default="random", choices=['random', 'dqn'], help="[FR] Type d'agent à entraîner. / [EN] Type of agent to train.")
+    parser.add_argument("--agent", type=str, default="random", choices=['random', 'dqn','double_dqn'], help="[FR] Type d'agent à entraîner. / [EN] Type of agent to train.")
     parser.add_argument("--steps", type=int, default=250_000, help="[FR] Nombre total de pas d'entraînement. / [EN] Total number of training steps.")
     parser.add_argument("--history-length", default=4, type=int, help="[FR] Nombre d'images à empiler pour une observation. / [EN] Number of frames to stack for an observation.")
     parser.add_argument("--eval-interval", type=int, default=25_000, help="[FR] Intervalle d'évaluation en pas. / [EN] Evaluation interval in steps.")
     parser.add_argument("--eval-episodes", type=int, default=20, help="[FR] Nombre d'épisodes pour l'évaluation. / [EN] Number of episodes for evaluation.")
+    parser.add_argument("--buffer-size", type=int, default=100_000, help="Taille du Replay Buffer.")
+    parser.add_argument("--batch-size", type=int, default=32, help="Taille du lot pour l'apprentissage.")
+    parser.add_argument("--gamma", type=float, default=0.99, help="Facteur d'actualisation.")
+    parser.add_argument("--lr", type=float, default=1e-5, help="Taux d'apprentissage pour Adam.")
+    parser.add_argument("--target-update-interval", type=int, default=1000,help="Fréquence de mise à jour du réseau cible.")
+
     return parser.parse_args()
 
 if __name__ == "__main__":
