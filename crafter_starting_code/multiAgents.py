@@ -1,5 +1,4 @@
-# [FR] On importe les bibliothèques nécessaires.
-# [EN] We import the necessary libraries.
+# import the necessary libraries.
 import collections
 import random
 import torch
