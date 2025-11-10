@@ -1,4 +1,7 @@
 # import the necessary libraries.
+"""
+    Authors: Agnes Maryline Sasha Esméralda KAMENI & ABDOU LAHAT SYLLA
+"""
 import collections
 import random
 import torch

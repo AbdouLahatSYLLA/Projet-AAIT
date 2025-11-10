@@ -1,3 +1,7 @@
+"""
+    Authors: Agnes Maryline Sasha Esméralda KAMENI & ABDOU LAHAT SYLLA
+"""
+
 import argparse  # to manage command-line arguments
 import pickle  # to back-up evals statistics
 from pathlib import Path  # to manage path
